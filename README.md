@@ -1,6 +1,6 @@
 # RLVR for HDFS Classification
 
-Example code for fine-tuning o4-mini to do analomy detection of HDFS logs using RLVR.
+Example code for fine-tuning o4-mini to do analomy detection of HDFS logs using Reinforcement Learning from Verifiable Rewards (RLVR).
 
 **Resources:**
 - [Video Explainer]
