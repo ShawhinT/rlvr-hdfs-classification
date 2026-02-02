@@ -4,8 +4,7 @@ from openai import OpenAI
 from dotenv import load_dotenv
 import os
 import json
-from peft import PeftModel
-import torch
+
 
 # connect to openai API
 load_dotenv()
@@ -24,7 +23,7 @@ def run_inference(model_name, examples, response_format, system_prompt="Classify
             response_format=response_format
         )
         pred = json.loads(response.choices[0].message.content)
-        predictions.append(pred["Anomalous"])
+        predictions.append(pred)  # Return full dict with Anomalous + reasoning
     return predictions
 
 def calculate_metrics(predictions, labels):
@@ -35,62 +34,3 @@ def calculate_metrics(predictions, labels):
         "recall": recall_score(labels, predictions, zero_division=0),
         "f1": f1_score(labels, predictions, zero_division=0)
     }
-
-
-# -----------------------------------------------------------------------------
-# Open-source attempt
-# -----------------------------------------------------------------------------
-
-def parse_prediction(completion_text: str) -> bool:
-    """Extract Anomalous boolean from model output (after </think> tag if present)."""
-    # Get text after thinking trace
-    if "</think>" in completion_text:
-        answer_text = completion_text.split("</think>")[-1].lower()
-    else:
-        answer_text = completion_text.lower()
-    
-    # Look for final answer pattern
-    if "anomalous: true" in answer_text:
-        return True
-    elif "anomalous: false" in answer_text:
-        return False
-    
-    # Fallback: check anywhere in answer portion
-    return "true" in answer_text and "anomal" in answer_text
-
-def run_local_inference(model, tokenizer, SYSTEM_PROMPT, examples, max_new_tokens=512):
-    """Run inference on examples using local model."""
-    predictions = []
-    
-    for example in tqdm(examples, desc="Running inference"):
-        # Format prompt
-        messages = [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": f"{example['text']}"}
-        ]
-        
-        # Tokenize
-        inputs = tokenizer.apply_chat_template(
-            messages, 
-            return_tensors="pt",
-            add_generation_prompt=True
-        )
-        
-        # Extract input_ids tensor and move to device
-        input_ids = inputs["input_ids"].to(model.device)
-        
-        # Generate
-        with torch.no_grad():
-            outputs = model.generate(
-                input_ids,
-                max_new_tokens=max_new_tokens,
-                do_sample=False,
-                pad_token_id=tokenizer.pad_token_id,
-            )
-        
-        # Decode
-        response = tokenizer.decode(outputs[0][input_ids.shape[1]:], skip_special_tokens=True)
-        pred = parse_prediction(response)
-        predictions.append(1 if pred else 0)
-    
-    return predictions

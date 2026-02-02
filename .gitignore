@@ -17,3 +17,6 @@ wheels/
 .ipynb_checkpoints/
 __pycache__/
 *.pyc
+
+# testing folder
+test/
